@@ -38,6 +38,9 @@
       window.mq_handle_back = function(pressed) { if (Module.ccall) Module.ccall('mq_handle_back', 'v', ['number'], [pressed]); };
     </script>
     
+    <!-- Polyfill: globalThis not available on Chromium < 71 (Tizen 5.5 = Chromium 69) -->
+    <script>if(typeof globalThis==='undefined'){var globalThis=window;}</script>
+
     <!-- Load the actual WASM bundle -->
     <script async type="text/javascript" src="toon_dash.js"></script>
 </body>
