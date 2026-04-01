@@ -70,7 +70,7 @@ var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIR
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-// include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpv10il5o1.js
+// include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmp4oc61xk9.js
 
 if (!Module['expectedDataFileDownloads']) Module['expectedDataFileDownloads'] = 0;
 Module['expectedDataFileDownloads']++;
@@ -363,21 +363,21 @@ Module['expectedDataFileDownloads']++;
   });
 })();
 
-// end include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpv10il5o1.js
-// include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpcxichnin.js
+// end include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmp4oc61xk9.js
+// include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpqzbmw164.js
 
 // All the pre-js content up to here must remain later on, we need to run
 // it.
 if (typeof ENVIRONMENT_IS_WASM_WORKER != 'undefined' && ENVIRONMENT_IS_WASM_WORKER || typeof ENVIRONMENT_IS_PTHREAD != 'undefined' && ENVIRONMENT_IS_PTHREAD || typeof ENVIRONMENT_IS_AUDIO_WORKLET != 'undefined' && ENVIRONMENT_IS_AUDIO_WORKLET) Module['preRun'] = [];
 var necessaryPreJSTasks = Module['preRun'].slice();
-// end include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpcxichnin.js
-// include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpoqpl4zph.js
+// end include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpqzbmw164.js
+// include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpohof2wgi.js
 
 if (!Module['preRun']) throw 'Module.preRun should exist because file support used it; did a pre-js delete it?';
 necessaryPreJSTasks.forEach(task => {
   if (Module['preRun'].indexOf(task) < 0) throw 'All preRun tasks that exist before user pre-js code should remain after; did you replace Module or modify Module.preRun?';
 });
-// end include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpoqpl4zph.js
+// end include: /var/folders/_z/ybfm1r1s0y172xcf4lr_jttm0000gn/T/tmpohof2wgi.js
 
 var arguments_ = [];
 var thisProgram = './this.program';
@@ -732,13 +732,6 @@ var /** @type {!Int8Array} */
   HEAPU32, /** @type {!Float32Array} */
   HEAPF32, /** @type {!Float64Array} */
   HEAPF64;
-
-// BigInt64Array type is not correctly defined in closure
-var /** not-@type {!BigInt64Array} */
-  HEAP64,
-  /* BigUint64Array type is not correctly defined in closure
-  /** not-@type {!BigUint64Array} */
-  HEAPU64;
 var runtimeInitialized = false;
 function updateMemoryViews() {
   var b = wasmMemory.buffer;
@@ -750,8 +743,6 @@ function updateMemoryViews() {
   HEAPU32 = new Uint32Array(b);
   HEAPF32 = new Float32Array(b);
   HEAPF64 = new Float64Array(b);
-  HEAP64 = new BigInt64Array(b);
-  HEAPU64 = new BigUint64Array(b);
 }
 
 // include: memoryprofiler.js
@@ -994,6 +985,10 @@ async function createWasm() {
   return exports;
 }
 
+// Globals used by JS i64 conversions (see makeSetValue)
+var tempDouble;
+var tempI64;
+
 // end include: preamble.js
 
 // Begin JS library code
@@ -1076,10 +1071,8 @@ var dynCallLegacy = (sig, ptr, args) => {
   sig = sig.replace(/p/g, 'i');
   assert(sig in dynCalls, `bad function pointer type - sig is not in dynCalls: '${sig}'`);
   if (args !== null && args !== void 0 && args.length) {
-    // j (64-bit integer) is fine, and is implemented as a BigInt. Without
-    // legalization, the number of parameters should match (j is not expanded
-    // into two i's).
-    assert(args.length === sig.length - 1);
+    // j (64-bit integer) must be passed in as two numbers [low 32, high 32].
+    assert(args.length === sig.substring(1).replace(/j/g, '--').length);
   } else {
     assert(sig.length == 1);
   }
@@ -1115,7 +1108,7 @@ function getValue(ptr) {
     case 'i32':
       return HEAP32[ptr >> 2];
     case 'i64':
-      return HEAP64[ptr >> 3];
+      abort('to do getValue(i64) use WASM_BIGINT');
     case 'float':
       return HEAPF32[ptr >> 2];
     case 'double':
@@ -1156,8 +1149,7 @@ function setValue(ptr, value) {
       HEAP32[ptr >> 2] = value;
       break;
     case 'i64':
-      HEAP64[ptr >> 3] = BigInt(value);
-      break;
+      abort('to do setValue(i64) use WASM_BIGINT');
     case 'float':
       HEAPF32[ptr >> 2] = value;
       break;
@@ -3863,29 +3855,29 @@ var SYSCALLS = {
     HEAPU32[buf + 12 >> 2] = stat.uid;
     HEAPU32[buf + 16 >> 2] = stat.gid;
     HEAPU32[buf + 20 >> 2] = stat.rdev;
-    HEAP64[buf + 24 >> 3] = BigInt(stat.size);
+    tempI64 = [stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 24 >> 2] = tempI64[0], HEAP32[buf + 28 >> 2] = tempI64[1];
     HEAP32[buf + 32 >> 2] = 4096;
     HEAP32[buf + 36 >> 2] = stat.blocks;
     var atime = stat.atime.getTime();
     var mtime = stat.mtime.getTime();
     var ctime = stat.ctime.getTime();
-    HEAP64[buf + 40 >> 3] = BigInt(Math.floor(atime / 1000));
+    tempI64 = [Math.floor(atime / 1000) >>> 0, (tempDouble = Math.floor(atime / 1000), +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
     HEAPU32[buf + 48 >> 2] = atime % 1000 * 1000 * 1000;
-    HEAP64[buf + 56 >> 3] = BigInt(Math.floor(mtime / 1000));
+    tempI64 = [Math.floor(mtime / 1000) >>> 0, (tempDouble = Math.floor(mtime / 1000), +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
     HEAPU32[buf + 64 >> 2] = mtime % 1000 * 1000 * 1000;
-    HEAP64[buf + 72 >> 3] = BigInt(Math.floor(ctime / 1000));
+    tempI64 = [Math.floor(ctime / 1000) >>> 0, (tempDouble = Math.floor(ctime / 1000), +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
     HEAPU32[buf + 80 >> 2] = ctime % 1000 * 1000 * 1000;
-    HEAP64[buf + 88 >> 3] = BigInt(stat.ino);
+    tempI64 = [stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
     return 0;
   },
   writeStatFs(buf, stats) {
     HEAPU32[buf + 4 >> 2] = stats.bsize;
     HEAPU32[buf + 60 >> 2] = stats.bsize;
-    HEAP64[buf + 8 >> 3] = BigInt(stats.blocks);
-    HEAP64[buf + 16 >> 3] = BigInt(stats.bfree);
-    HEAP64[buf + 24 >> 3] = BigInt(stats.bavail);
-    HEAP64[buf + 32 >> 3] = BigInt(stats.files);
-    HEAP64[buf + 40 >> 3] = BigInt(stats.ffree);
+    tempI64 = [stats.blocks >>> 0, (tempDouble = stats.blocks, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 8 >> 2] = tempI64[0], HEAP32[buf + 12 >> 2] = tempI64[1];
+    tempI64 = [stats.bfree >>> 0, (tempDouble = stats.bfree, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 16 >> 2] = tempI64[0], HEAP32[buf + 20 >> 2] = tempI64[1];
+    tempI64 = [stats.bavail >>> 0, (tempDouble = stats.bavail, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 24 >> 2] = tempI64[0], HEAP32[buf + 28 >> 2] = tempI64[1];
+    tempI64 = [stats.files >>> 0, (tempDouble = stats.files, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 32 >> 2] = tempI64[0], HEAP32[buf + 36 >> 2] = tempI64[1];
+    tempI64 = [stats.ffree >>> 0, (tempDouble = stats.ffree, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
     HEAPU32[buf + 48 >> 2] = stats.fsid;
     HEAPU32[buf + 64 >> 2] = stats.flags; // ST_NOSUID
     HEAPU32[buf + 56 >> 2] = stats.namelen;
@@ -4156,11 +4148,13 @@ var _emscripten_get_now = () => performance.now();
 var _emscripten_date_now = () => Date.now();
 var nowIsMonotonic = 1;
 var checkWasiClock = clock_id => clock_id >= 0 && clock_id <= 3;
-var INT53_MAX = 9007199254740992;
-var INT53_MIN = -9007199254740992;
-var bigintToI53Checked = num => num < INT53_MIN || num > INT53_MAX ? NaN : Number(num);
-function _clock_time_get(clk_id, ignored_precision, ptime) {
-  ignored_precision = bigintToI53Checked(ignored_precision);
+var convertI32PairToI53Checked = (lo, hi) => {
+  assert(lo == lo >>> 0 || lo == (lo | 0)); // lo should either be a i32 or a u32
+  assert(hi === (hi | 0)); // hi should be a i32
+  return hi + 0x200000 >>> 0 < 0x400001 - !!lo ? (lo >>> 0) + hi * 4294967296 : NaN;
+};
+function _clock_time_get(clk_id, ignored_precision_low, ignored_precision_high, ptime) {
+  var ignored_precision = convertI32PairToI53Checked(ignored_precision_low, ignored_precision_high);
   if (!checkWasiClock(clk_id)) {
     return 28;
   }
@@ -4175,7 +4169,7 @@ function _clock_time_get(clk_id, ignored_precision, ptime) {
   }
   // "now" is in ms, and wasi times are in ns.
   var nsec = Math.round(now * 1000 * 1000);
-  HEAP64[ptime >> 3] = BigInt(nsec);
+  tempI64 = [nsec >>> 0, (tempDouble = nsec, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[ptime >> 2] = tempI64[0], HEAP32[ptime + 4 >> 2] = tempI64[1];
   return 0;
   ;
 }
@@ -4192,8 +4186,6 @@ var readEmAsmArgs = (sigPtr, buf) => {
   while (ch = HEAPU8[sigPtr++]) {
     var chr = String.fromCharCode(ch);
     var validChars = ['d', 'f', 'i', 'p'];
-    // In WASM_BIGINT mode we support passing i64 values as bigint.
-    validChars.push('j');
     assert(validChars.includes(chr), `Invalid character ${ch}("${chr}") in readEmAsmArgs! Use only [${validChars}], and do not specify "v" for void return argument.`);
     // Floats are always passed as doubles, so all types except for 'i'
     // are 8 bytes and require alignment.
@@ -4202,7 +4194,7 @@ var readEmAsmArgs = (sigPtr, buf) => {
     buf += wide && buf % 8 ? 4 : 0;
     readEmAsmArgsArray.push(
     // Special case for pointers under wasm64 or CAN_ADDRESS_2GB mode.
-    ch == 112 ? HEAPU32[buf >> 2] : ch == 106 ? HEAP64[buf >> 3] : ch == 105 ? HEAP32[buf >> 2] : HEAPF64[buf >> 3]);
+    ch == 112 ? HEAPU32[buf >> 2] : ch == 105 ? HEAP32[buf >> 2] : HEAPF64[buf >> 3]);
     buf += wide ? 8 : 4;
   }
   return readEmAsmArgsArray;
@@ -7163,13 +7155,13 @@ function _fd_read(fd, iov, iovcnt, pnum) {
     return e.errno;
   }
 }
-function _fd_seek(fd, offset, whence, newOffset) {
-  offset = bigintToI53Checked(offset);
+function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
+  var offset = convertI32PairToI53Checked(offset_low, offset_high);
   try {
     if (isNaN(offset)) return 61;
     var stream = SYSCALLS.getStreamFromFD(fd);
     FS.llseek(stream, offset, whence);
-    HEAP64[newOffset >> 3] = BigInt(stream.position);
+    tempI64 = [stream.position >>> 0, (tempDouble = stream.position, +Math.abs(tempDouble) >= 1.0 ? tempDouble > 0.0 ? +Math.floor(tempDouble / 4294967296.0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0) >>> 0 : 0)], HEAP32[newOffset >> 2] = tempI64[0], HEAP32[newOffset + 4 >> 2] = tempI64[1];
     if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null; // reset readdir state
     return 0;
   } catch (e) {
@@ -9256,9 +9248,9 @@ Module['FS_createPath'] = FS_createPath;
 Module['FS_createDevice'] = FS_createDevice;
 Module['FS_createDataFile'] = FS_createDataFile;
 Module['FS_createLazyFile'] = FS_createLazyFile;
-var missingLibrarySymbols = ['writeI53ToI64Clamped', 'writeI53ToI64Signaling', 'writeI53ToU64Clamped', 'writeI53ToU64Signaling', 'convertI32PairToI53', 'convertI32PairToI53Checked', 'convertU32PairToI53', 'getTempRet0', 'setTempRet0', 'zeroMemory', 'withStackSave', 'inetPton4', 'inetNtop4', 'inetPton6', 'inetNtop6', 'readSockaddr', 'writeSockaddr', 'runMainThreadEmAsm', 'getExecutableName', 'autoResumeAudioContext', 'getDynCaller', 'asmjsMangle', 'HandleAllocator', 'addOnInit', 'addOnPostCtor', 'addOnPreMain', 'STACK_SIZE', 'STACK_ALIGN', 'POINTER_SIZE', 'ASSERTIONS', 'convertJsFunctionToWasm', 'getEmptyTableSlot', 'updateTableMap', 'getFunctionAddress', 'addFunction', 'removeFunction', 'intArrayToString', 'AsciiToString', 'stringToAscii', 'UTF16ToString', 'stringToUTF16', 'lengthBytesUTF16', 'UTF32ToString', 'stringToUTF32', 'lengthBytesUTF32', 'registerKeyEventCallback', 'registerWheelEventCallback', 'fillDeviceOrientationEventData', 'registerDeviceOrientationEventCallback', 'fillDeviceMotionEventData', 'registerDeviceMotionEventCallback', 'screenOrientation', 'fillOrientationChangeEventData', 'registerOrientationChangeEventCallback', 'JSEvents_requestFullscreen', 'JSEvents_resizeCanvasForFullscreen', 'registerRestoreOldStyle', 'hideEverythingExceptGivenElement', 'restoreHiddenElements', 'setLetterbox', 'softFullscreenResizeWebGLRenderTarget', 'doRequestFullscreen', 'registerPointerlockErrorEventCallback', 'requestPointerLock', 'registerBeforeUnloadEventCallback', 'fillBatteryEventData', 'registerBatteryEventCallback', 'setCanvasElementSize', 'getCanvasElementSize', 'jsStackTrace', 'getCallstack', 'convertPCtoSourceLocation', 'getEnvStrings', 'wasiRightsToMuslOFlags', 'wasiOFlagsToMuslOFlags', 'setImmediateWrapped', 'safeRequestAnimationFrame', 'clearImmediateWrapped', 'registerPostMainLoop', 'registerPreMainLoop', 'getPromise', 'makePromise', 'idsToPromises', 'makePromiseCallback', 'ExceptionInfo', 'findMatchingCatch', 'Browser_asyncPrepareDataCounter', 'isLeapYear', 'ydayFromDate', 'arraySum', 'addDays', 'getSocketFromFD', 'getSocketAddress', 'FS_mkdirTree', '_setNetworkCallback', 'writeGLArray', 'registerWebGlEventCallback', 'ALLOC_NORMAL', 'ALLOC_STACK', 'allocate', 'writeStringToMemory', 'writeAsciiToMemory', 'allocateUTF8', 'allocateUTF8OnStack', 'demangle', 'stackTrace', 'getNativeTypeSize'];
+var missingLibrarySymbols = ['writeI53ToI64Clamped', 'writeI53ToI64Signaling', 'writeI53ToU64Clamped', 'writeI53ToU64Signaling', 'convertI32PairToI53', 'convertU32PairToI53', 'getTempRet0', 'setTempRet0', 'zeroMemory', 'withStackSave', 'inetPton4', 'inetNtop4', 'inetPton6', 'inetNtop6', 'readSockaddr', 'writeSockaddr', 'runMainThreadEmAsm', 'getExecutableName', 'autoResumeAudioContext', 'getDynCaller', 'asmjsMangle', 'HandleAllocator', 'addOnInit', 'addOnPostCtor', 'addOnPreMain', 'STACK_SIZE', 'STACK_ALIGN', 'POINTER_SIZE', 'ASSERTIONS', 'convertJsFunctionToWasm', 'getEmptyTableSlot', 'updateTableMap', 'getFunctionAddress', 'addFunction', 'removeFunction', 'intArrayToString', 'AsciiToString', 'stringToAscii', 'UTF16ToString', 'stringToUTF16', 'lengthBytesUTF16', 'UTF32ToString', 'stringToUTF32', 'lengthBytesUTF32', 'registerKeyEventCallback', 'registerWheelEventCallback', 'fillDeviceOrientationEventData', 'registerDeviceOrientationEventCallback', 'fillDeviceMotionEventData', 'registerDeviceMotionEventCallback', 'screenOrientation', 'fillOrientationChangeEventData', 'registerOrientationChangeEventCallback', 'JSEvents_requestFullscreen', 'JSEvents_resizeCanvasForFullscreen', 'registerRestoreOldStyle', 'hideEverythingExceptGivenElement', 'restoreHiddenElements', 'setLetterbox', 'softFullscreenResizeWebGLRenderTarget', 'doRequestFullscreen', 'registerPointerlockErrorEventCallback', 'requestPointerLock', 'registerBeforeUnloadEventCallback', 'fillBatteryEventData', 'registerBatteryEventCallback', 'setCanvasElementSize', 'getCanvasElementSize', 'jsStackTrace', 'getCallstack', 'convertPCtoSourceLocation', 'getEnvStrings', 'wasiRightsToMuslOFlags', 'wasiOFlagsToMuslOFlags', 'setImmediateWrapped', 'safeRequestAnimationFrame', 'clearImmediateWrapped', 'registerPostMainLoop', 'registerPreMainLoop', 'getPromise', 'makePromise', 'idsToPromises', 'makePromiseCallback', 'ExceptionInfo', 'findMatchingCatch', 'Browser_asyncPrepareDataCounter', 'isLeapYear', 'ydayFromDate', 'arraySum', 'addDays', 'getSocketFromFD', 'getSocketAddress', 'FS_mkdirTree', '_setNetworkCallback', 'writeGLArray', 'registerWebGlEventCallback', 'ALLOC_NORMAL', 'ALLOC_STACK', 'allocate', 'writeStringToMemory', 'writeAsciiToMemory', 'allocateUTF8', 'allocateUTF8OnStack', 'demangle', 'stackTrace', 'getNativeTypeSize'];
 missingLibrarySymbols.forEach(missingLibrarySymbol);
-var unexportedSymbols = ['run', 'out', 'err', 'callMain', 'abort', 'wasmExports', 'HEAPF32', 'HEAPF64', 'HEAP8', 'HEAPU8', 'HEAP16', 'HEAPU16', 'HEAP32', 'HEAPU32', 'HEAP64', 'HEAPU64', 'writeStackCookie', 'checkStackCookie', 'writeI53ToI64', 'readI53FromI64', 'readI53FromU64', 'INT53_MAX', 'INT53_MIN', 'bigintToI53Checked', 'stackSave', 'stackRestore', 'stackAlloc', 'createNamedFunction', 'ptrToString', 'exitJS', 'getHeapMax', 'growMemory', 'ENV', 'ERRNO_CODES', 'strError', 'DNS', 'Protocols', 'Sockets', 'timers', 'warnOnce', 'readEmAsmArgsArray', 'readEmAsmArgs', 'runEmAsmFunction', 'jstoi_q', 'dynCallLegacy', 'dynCall', 'handleException', 'keepRuntimeAlive', 'runtimeKeepalivePush', 'runtimeKeepalivePop', 'callUserCallback', 'maybeExit', 'asyncLoad', 'alignMemory', 'mmapAlloc', 'wasmTable', 'wasmMemory', 'getUniqueRunDependency', 'noExitRuntime', 'addOnPreRun', 'addOnExit', 'addOnPostRun', 'freeTableIndexes', 'functionsInTableMap', 'setValue', 'getValue', 'PATH', 'PATH_FS', 'UTF8Decoder', 'UTF8ArrayToString', 'UTF8ToString', 'stringToUTF8Array', 'stringToUTF8', 'lengthBytesUTF8', 'intArrayFromString', 'UTF16Decoder', 'stringToNewUTF8', 'stringToUTF8OnStack', 'writeArrayToMemory', 'JSEvents', 'specialHTMLTargets', 'maybeCStringToJsString', 'findEventTarget', 'findCanvasEventTarget', 'getBoundingClientRect', 'fillMouseEventData', 'registerMouseEventCallback', 'registerUiEventCallback', 'registerFocusEventCallback', 'fillFullscreenChangeEventData', 'registerFullscreenChangeEventCallback', 'currentFullscreenStrategy', 'restoreOldWindowedStyle', 'fillPointerlockChangeEventData', 'registerPointerlockChangeEventCallback', 'fillVisibilityChangeEventData', 'registerVisibilityChangeEventCallback', 'registerTouchEventCallback', 'fillGamepadEventData', 'registerGamepadEventCallback', 'UNWIND_CACHE', 'ExitStatus', 'checkWasiClock', 'doReadv', 'doWritev', 'initRandomFill', 'randomFill', 'safeSetTimeout', 'emSetImmediate', 'emClearImmediate_deps', 'emClearImmediate', 'promiseMap', 'uncaughtExceptionCount', 'exceptionLast', 'exceptionCaught', 'Browser', 'requestFullscreen', 'requestFullScreen', 'setCanvasSize', 'getUserMedia', 'createContext', 'getPreloadedImageData__data', 'wget', 'MONTH_DAYS_REGULAR', 'MONTH_DAYS_LEAP', 'MONTH_DAYS_REGULAR_CUMULATIVE', 'MONTH_DAYS_LEAP_CUMULATIVE', 'SYSCALLS', 'preloadPlugins', 'FS_createPreloadedFile', 'FS_modeStringToFlags', 'FS_getMode', 'FS_fileDataToTypedArray', 'FS_stdin_getChar_buffer', 'FS_stdin_getChar', 'FS_readFile', 'FS', 'FS_root', 'FS_mounts', 'FS_devices', 'FS_streams', 'FS_nextInode', 'FS_nameTable', 'FS_currentPath', 'FS_initialized', 'FS_ignorePermissions', 'FS_filesystems', 'FS_syncFSRequests', 'FS_lookupPath', 'FS_getPath', 'FS_hashName', 'FS_hashAddNode', 'FS_hashRemoveNode', 'FS_lookupNode', 'FS_createNode', 'FS_destroyNode', 'FS_isRoot', 'FS_isMountpoint', 'FS_isFile', 'FS_isDir', 'FS_isLink', 'FS_isChrdev', 'FS_isBlkdev', 'FS_isFIFO', 'FS_isSocket', 'FS_flagsToPermissionString', 'FS_nodePermissions', 'FS_mayLookup', 'FS_mayCreate', 'FS_mayDelete', 'FS_mayOpen', 'FS_checkOpExists', 'FS_nextfd', 'FS_getStreamChecked', 'FS_getStream', 'FS_createStream', 'FS_closeStream', 'FS_dupStream', 'FS_doSetAttr', 'FS_chrdev_stream_ops', 'FS_major', 'FS_minor', 'FS_makedev', 'FS_registerDevice', 'FS_getDevice', 'FS_getMounts', 'FS_syncfs', 'FS_mount', 'FS_unmount', 'FS_lookup', 'FS_mknod', 'FS_statfs', 'FS_statfsStream', 'FS_statfsNode', 'FS_create', 'FS_mkdir', 'FS_mkdev', 'FS_symlink', 'FS_rename', 'FS_rmdir', 'FS_readdir', 'FS_readlink', 'FS_stat', 'FS_fstat', 'FS_lstat', 'FS_doChmod', 'FS_chmod', 'FS_lchmod', 'FS_fchmod', 'FS_doChown', 'FS_chown', 'FS_lchown', 'FS_fchown', 'FS_doTruncate', 'FS_truncate', 'FS_ftruncate', 'FS_utime', 'FS_open', 'FS_close', 'FS_isClosed', 'FS_llseek', 'FS_read', 'FS_write', 'FS_mmap', 'FS_msync', 'FS_ioctl', 'FS_writeFile', 'FS_cwd', 'FS_chdir', 'FS_createDefaultDirectories', 'FS_createDefaultDevices', 'FS_createSpecialDirectories', 'FS_createStandardStreams', 'FS_staticInit', 'FS_init', 'FS_quit', 'FS_findObject', 'FS_analyzePath', 'FS_createFile', 'FS_forceLoadFile', 'MEMFS', 'TTY', 'PIPEFS', 'SOCKFS', 'tempFixedLengthArray', 'miniTempWebGLFloatBuffers', 'miniTempWebGLIntBuffers', 'heapObjectForWebGLType', 'toTypedArrayIndex', 'webgl_enable_ANGLE_instanced_arrays', 'webgl_enable_OES_vertex_array_object', 'webgl_enable_WEBGL_draw_buffers', 'webgl_enable_WEBGL_multi_draw', 'webgl_enable_EXT_polygon_offset_clamp', 'webgl_enable_EXT_clip_control', 'webgl_enable_WEBGL_polygon_mode', 'GL', 'emscriptenWebGLGet', 'computeUnpackAlignedImageSize', 'colorChannelsInGlTextureFormat', 'emscriptenWebGLGetTexPixelData', 'emscriptenWebGLGetUniform', 'webglGetUniformLocation', 'webglPrepareUniformLocationsBeforeFirstUse', 'webglGetLeftBracePos', 'emscriptenWebGLGetVertexAttrib', '__glGetActiveAttribOrUniform', 'AL', 'GLUT', 'EGL', 'GLEW', 'IDBStore', 'runAndAbortIfError', 'Asyncify', 'Fibers', 'SDL', 'SDL_gfx', 'GLFW_Window', 'GLFW', 'print', 'printErr', 'jstoi_s'];
+var unexportedSymbols = ['run', 'out', 'err', 'callMain', 'abort', 'wasmExports', 'HEAPF32', 'HEAPF64', 'HEAP8', 'HEAPU8', 'HEAP16', 'HEAPU16', 'HEAP32', 'HEAPU32', 'HEAP64', 'HEAPU64', 'writeStackCookie', 'checkStackCookie', 'writeI53ToI64', 'readI53FromI64', 'readI53FromU64', 'convertI32PairToI53Checked', 'stackSave', 'stackRestore', 'stackAlloc', 'createNamedFunction', 'ptrToString', 'exitJS', 'getHeapMax', 'growMemory', 'ENV', 'ERRNO_CODES', 'strError', 'DNS', 'Protocols', 'Sockets', 'timers', 'warnOnce', 'readEmAsmArgsArray', 'readEmAsmArgs', 'runEmAsmFunction', 'jstoi_q', 'dynCallLegacy', 'dynCall', 'handleException', 'keepRuntimeAlive', 'runtimeKeepalivePush', 'runtimeKeepalivePop', 'callUserCallback', 'maybeExit', 'asyncLoad', 'alignMemory', 'mmapAlloc', 'wasmTable', 'wasmMemory', 'getUniqueRunDependency', 'noExitRuntime', 'addOnPreRun', 'addOnExit', 'addOnPostRun', 'freeTableIndexes', 'functionsInTableMap', 'setValue', 'getValue', 'PATH', 'PATH_FS', 'UTF8Decoder', 'UTF8ArrayToString', 'UTF8ToString', 'stringToUTF8Array', 'stringToUTF8', 'lengthBytesUTF8', 'intArrayFromString', 'UTF16Decoder', 'stringToNewUTF8', 'stringToUTF8OnStack', 'writeArrayToMemory', 'JSEvents', 'specialHTMLTargets', 'maybeCStringToJsString', 'findEventTarget', 'findCanvasEventTarget', 'getBoundingClientRect', 'fillMouseEventData', 'registerMouseEventCallback', 'registerUiEventCallback', 'registerFocusEventCallback', 'fillFullscreenChangeEventData', 'registerFullscreenChangeEventCallback', 'currentFullscreenStrategy', 'restoreOldWindowedStyle', 'fillPointerlockChangeEventData', 'registerPointerlockChangeEventCallback', 'fillVisibilityChangeEventData', 'registerVisibilityChangeEventCallback', 'registerTouchEventCallback', 'fillGamepadEventData', 'registerGamepadEventCallback', 'UNWIND_CACHE', 'ExitStatus', 'checkWasiClock', 'doReadv', 'doWritev', 'initRandomFill', 'randomFill', 'safeSetTimeout', 'emSetImmediate', 'emClearImmediate_deps', 'emClearImmediate', 'promiseMap', 'uncaughtExceptionCount', 'exceptionLast', 'exceptionCaught', 'Browser', 'requestFullscreen', 'requestFullScreen', 'setCanvasSize', 'getUserMedia', 'createContext', 'getPreloadedImageData__data', 'wget', 'MONTH_DAYS_REGULAR', 'MONTH_DAYS_LEAP', 'MONTH_DAYS_REGULAR_CUMULATIVE', 'MONTH_DAYS_LEAP_CUMULATIVE', 'SYSCALLS', 'preloadPlugins', 'FS_createPreloadedFile', 'FS_modeStringToFlags', 'FS_getMode', 'FS_fileDataToTypedArray', 'FS_stdin_getChar_buffer', 'FS_stdin_getChar', 'FS_readFile', 'FS', 'FS_root', 'FS_mounts', 'FS_devices', 'FS_streams', 'FS_nextInode', 'FS_nameTable', 'FS_currentPath', 'FS_initialized', 'FS_ignorePermissions', 'FS_filesystems', 'FS_syncFSRequests', 'FS_lookupPath', 'FS_getPath', 'FS_hashName', 'FS_hashAddNode', 'FS_hashRemoveNode', 'FS_lookupNode', 'FS_createNode', 'FS_destroyNode', 'FS_isRoot', 'FS_isMountpoint', 'FS_isFile', 'FS_isDir', 'FS_isLink', 'FS_isChrdev', 'FS_isBlkdev', 'FS_isFIFO', 'FS_isSocket', 'FS_flagsToPermissionString', 'FS_nodePermissions', 'FS_mayLookup', 'FS_mayCreate', 'FS_mayDelete', 'FS_mayOpen', 'FS_checkOpExists', 'FS_nextfd', 'FS_getStreamChecked', 'FS_getStream', 'FS_createStream', 'FS_closeStream', 'FS_dupStream', 'FS_doSetAttr', 'FS_chrdev_stream_ops', 'FS_major', 'FS_minor', 'FS_makedev', 'FS_registerDevice', 'FS_getDevice', 'FS_getMounts', 'FS_syncfs', 'FS_mount', 'FS_unmount', 'FS_lookup', 'FS_mknod', 'FS_statfs', 'FS_statfsStream', 'FS_statfsNode', 'FS_create', 'FS_mkdir', 'FS_mkdev', 'FS_symlink', 'FS_rename', 'FS_rmdir', 'FS_readdir', 'FS_readlink', 'FS_stat', 'FS_fstat', 'FS_lstat', 'FS_doChmod', 'FS_chmod', 'FS_lchmod', 'FS_fchmod', 'FS_doChown', 'FS_chown', 'FS_lchown', 'FS_fchown', 'FS_doTruncate', 'FS_truncate', 'FS_ftruncate', 'FS_utime', 'FS_open', 'FS_close', 'FS_isClosed', 'FS_llseek', 'FS_read', 'FS_write', 'FS_mmap', 'FS_msync', 'FS_ioctl', 'FS_writeFile', 'FS_cwd', 'FS_chdir', 'FS_createDefaultDirectories', 'FS_createDefaultDevices', 'FS_createSpecialDirectories', 'FS_createStandardStreams', 'FS_staticInit', 'FS_init', 'FS_quit', 'FS_findObject', 'FS_analyzePath', 'FS_createFile', 'FS_forceLoadFile', 'MEMFS', 'TTY', 'PIPEFS', 'SOCKFS', 'tempFixedLengthArray', 'miniTempWebGLFloatBuffers', 'miniTempWebGLIntBuffers', 'heapObjectForWebGLType', 'toTypedArrayIndex', 'webgl_enable_ANGLE_instanced_arrays', 'webgl_enable_OES_vertex_array_object', 'webgl_enable_WEBGL_draw_buffers', 'webgl_enable_WEBGL_multi_draw', 'webgl_enable_EXT_polygon_offset_clamp', 'webgl_enable_EXT_clip_control', 'webgl_enable_WEBGL_polygon_mode', 'GL', 'emscriptenWebGLGet', 'computeUnpackAlignedImageSize', 'colorChannelsInGlTextureFormat', 'emscriptenWebGLGetTexPixelData', 'emscriptenWebGLGetUniform', 'webglGetUniformLocation', 'webglPrepareUniformLocationsBeforeFirstUse', 'webglGetLeftBracePos', 'emscriptenWebGLGetVertexAttrib', '__glGetActiveAttribOrUniform', 'AL', 'GLUT', 'EGL', 'GLEW', 'IDBStore', 'runAndAbortIfError', 'Asyncify', 'Fibers', 'SDL', 'SDL_gfx', 'GLFW_Window', 'GLFW', 'print', 'printErr', 'jstoi_s'];
 unexportedSymbols.forEach(unexportedRuntimeSymbol);
 
 // End runtime exports
@@ -9639,7 +9631,7 @@ function assignWasmExports(wasmExports) {
   dynCall_viffff = dynCalls['viffff'] = createExportWrapper('dynCall_viffff', 6);
   dynCall_viiiiii = dynCalls['viiiiii'] = createExportWrapper('dynCall_viiiiii', 7);
   dynCall_vfff = dynCalls['vfff'] = createExportWrapper('dynCall_vfff', 4);
-  dynCall_jiji = dynCalls['jiji'] = createExportWrapper('dynCall_jiji', 4);
+  dynCall_jiji = dynCalls['jiji'] = createExportWrapper('dynCall_jiji', 5);
   dynCall_iidiiii = dynCalls['iidiiii'] = createExportWrapper('dynCall_iidiiii', 7);
   _asyncify_start_unwind = createExportWrapper('asyncify_start_unwind', 1);
   _asyncify_stop_unwind = createExportWrapper('asyncify_stop_unwind', 0);

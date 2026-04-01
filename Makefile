@@ -2,8 +2,12 @@ RAYLIB_DIR = raylib
 RAYLIB_LIB = $(RAYLIB_DIR)/src/libraylib.a
 
 CC = emcc
-CFLAGS = -Wall -Iinclude -I$(RAYLIB_DIR)/src -D__EMSCRIPTEN__ -Os
-LDFLAGS = -L$(RAYLIB_DIR)/src -l:libraylib.a
+
+# MVP-safety flags: disable all post-MVP WASM features for Tizen 5.5 (Chrome 69)
+MVP_FLAGS = -mno-sign-ext -mno-bulk-memory -mno-nontrapping-fptoint -mno-simd128
+
+CFLAGS = -Wall -Iinclude -I$(RAYLIB_DIR)/src -D__EMSCRIPTEN__ -Os $(MVP_FLAGS)
+LDFLAGS = -L$(RAYLIB_DIR)/src -l:libraylib.a $(MVP_FLAGS)
 
 # Emscripten specific flags for WebGL and browser environments
 # We preload the assets folder so the browser has access to models and audio
@@ -16,11 +20,8 @@ LDFLAGS += -s USE_GLFW=3 \
            -s MIN_CHROME_VERSION=74 \
            -s ASYNCIFY \
            -s ALLOW_MEMORY_GROWTH=1 \
+           -s WASM_BIGINT=0 \
            -s EXPORTED_RUNTIME_METHODS=ccall,cwrap \
-           -mno-sign-ext \
-           -mno-bulk-memory \
-           -mno-nontrapping-fptoint \
-           -mno-simd128 \
            --preload-file assets
 
 SRC_DIR = src
@@ -43,7 +44,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 
 $(RAYLIB_LIB):
 	git clone --depth 1 https://github.com/raysan5/raylib.git $(RAYLIB_DIR)
-	cd $(RAYLIB_DIR)/src && make PLATFORM=PLATFORM_WEB -B
+	cd $(RAYLIB_DIR)/src && make PLATFORM=PLATFORM_WEB CUSTOM_CFLAGS="$(MVP_FLAGS)" -B
 	cp $(RAYLIB_DIR)/src/libraylib.web.a $(RAYLIB_LIB)
 
 clean:
