@@ -1,0 +1,156 @@
+[
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/track.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/track.c",
+      "-o",
+      "build/track.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/collectibles.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/collectibles.c",
+      "-o",
+      "build/collectibles.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/state.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/state.c",
+      "-o",
+      "build/state.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/obstacles.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/obstacles.c",
+      "-o",
+      "build/obstacles.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/tv_input.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/tv_input.c",
+      "-o",
+      "build/tv_input.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/main.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/main.c",
+      "-o",
+      "build/main.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/types.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/types.c",
+      "-o",
+      "build/types.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/renderer.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/renderer.c",
+      "-o",
+      "build/renderer.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/camera.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/camera.c",
+      "-o",
+      "build/camera.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/assets.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/assets.c",
+      "-o",
+      "build/assets.o"
+    ]
+  },
+  {
+    "directory": "/Users/diego/Repositories/toon-dash-c",
+    "file": "src/player.c",
+    "arguments": [
+      "cc",
+      "-Wall",
+      "-Iinclude",
+      "-Iraylib/src",
+      "-c",
+      "src/player.c",
+      "-o",
+      "build/player.o"
+    ]
+  }
+]
